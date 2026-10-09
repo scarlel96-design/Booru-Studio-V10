@@ -1,0 +1,76 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import StrEnum
+from types import MappingProxyType
+from typing import Mapping
+
+
+class ErrorCode(StrEnum):
+    NETWORK_RESET = "NETWORK_RESET"
+    NETWORK_TIMEOUT = "NETWORK_TIMEOUT"
+    NETWORK_OFFLINE = "NETWORK_OFFLINE"
+    DNS_FAILURE = "DNS_FAILURE"
+    RATE_LIMITED = "RATE_LIMITED"
+    AUTH_REQUIRED = "AUTH_REQUIRED"
+    GEO_RESTRICTED = "GEO_RESTRICTED"
+    DRM_PROTECTED = "DRM_PROTECTED"
+    SOURCE_NOT_FOUND = "SOURCE_NOT_FOUND"
+    SOURCE_CHANGED = "SOURCE_CHANGED"
+    UNSUPPORTED_MEDIA = "UNSUPPORTED_MEDIA"
+
+    DESTINATION_UNAVAILABLE = "DESTINATION_UNAVAILABLE"
+    DESTINATION_IDENTITY_UNCERTAIN = "DESTINATION_IDENTITY_UNCERTAIN"
+    DISK_FULL = "DISK_FULL"
+    FILE_LOCKED = "FILE_LOCKED"
+    ACCESS_DENIED = "ACCESS_DENIED"
+    PATH_INVALID = "PATH_INVALID"
+    FILESYSTEM_IO = "FILESYSTEM_IO"
+
+    ENGINE_UNAVAILABLE = "ENGINE_UNAVAILABLE"
+    ENGINE_CRASHED = "ENGINE_CRASHED"
+    ENGINE_PROTOCOL_ERROR = "ENGINE_PROTOCOL_ERROR"
+    ENGINE_UNKNOWN_ERROR = "ENGINE_UNKNOWN_ERROR"
+    BROWSER_UNAVAILABLE = "BROWSER_UNAVAILABLE"
+    BROWSER_CRASHED = "BROWSER_CRASHED"
+    BROWSER_PROTOCOL_ERROR = "BROWSER_PROTOCOL_ERROR"
+    NETWORK_SCOPE_BLOCKED = "NETWORK_SCOPE_BLOCKED"
+    POSTPROCESS_FAILED = "POSTPROCESS_FAILED"
+    VERIFICATION_FAILED = "VERIFICATION_FAILED"
+    ENGINE_PACK_REVOKED = "ENGINE_PACK_REVOKED"
+    ENGINE_PACK_CORRUPT = "ENGINE_PACK_CORRUPT"
+
+    DB_BUSY = "DB_BUSY"
+    DB_IO_ERROR = "DB_IO_ERROR"
+    DB_CORRUPT = "DB_CORRUPT"
+    DB_SCHEMA_MISMATCH = "DB_SCHEMA_MISMATCH"
+    DB_NEWER_SCHEMA = "DB_NEWER_SCHEMA"
+    MIGRATION_FAILED = "MIGRATION_FAILED"
+    DURABILITY_UNAVAILABLE = "DURABILITY_UNAVAILABLE"
+    RECOVERY_REQUIRED = "RECOVERY_REQUIRED"
+
+    PROTOCOL_ERROR = "PROTOCOL_ERROR"
+    AUTHENTICATION_FAILED = "AUTHENTICATION_FAILED"
+    RESOURCE_EXHAUSTED = "RESOURCE_EXHAUSTED"
+    INTERNAL_ERROR = "INTERNAL_ERROR"
+
+
+class ErrorConfidence(StrEnum):
+    EXACT = "EXACT"
+    STRONG = "STRONG"
+    HEURISTIC = "HEURISTIC"
+    UNKNOWN = "UNKNOWN"
+
+
+@dataclass(frozen=True, slots=True)
+class ErrorInstance:
+    code: ErrorCode
+    confidence: ErrorConfidence
+    user_message_key: str
+    retryable: bool = False
+    native_code: str | None = None
+    evidence: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # Freeze a copied mapping so callers cannot mutate diagnostic evidence after creation.
+        object.__setattr__(self, "evidence", MappingProxyType(dict(self.evidence)))
