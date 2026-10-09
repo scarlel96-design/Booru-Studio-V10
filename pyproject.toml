@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "booru-studio"
+version = "10.0.0.dev10"
+description = "Booru Studio V10 - universal web media download manager"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+license = { text = "UNLICENSED" }
+authors = [{ name = "Booru Studio contributors" }]
+dependencies = [
+  "requests>=2.32,<3",
+]
+
+[project.scripts]
+booru-studio-ui = "booru_studio.ui.app:main"
+booru-studio-core = "booru_studio.core.runtime_main:main"
+booru-studio-worker = "booru_studio.worker.main:main"
+
+[project.optional-dependencies]
+gui = [
+  "PySide6==6.11.1",
+]
+engines = [
+  "gallery-dl==1.32.9",
+  "yt-dlp[default] @ https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp.tar.gz#sha256=072aad4f2a7604e92155f61a275a4752dc64046c8f6d90df3710525d94cd37c1",
+  "yt-dlp-ejs==0.8.0",
+  "playwright==1.62.0",
+]
+dev = [
+  "pytest>=9.0,<10",
+  "pytest-cov>=7.0,<8",
+  "hypothesis>=6.140,<7",
+  "ruff>=0.12,<1",
+  "mypy>=1.17,<2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/booru_studio"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "src"
+packages = ["booru_studio"]

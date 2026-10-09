@@ -1,0 +1,59 @@
+Booru Studio V10 review verification — 2026-10-09
+
+BRANCH: LOCAL_COPY_NO_GIT (the handoff source has no .git directory)
+CHANGED FIELDS: common.redaction.redact_input_for_storage; domain.source_grant.SourceGrantStore; common.hashing.fsync_file; engine.adapters.direct_http.transfer._checkpoint; ipc.stream_connection.StreamConnection.recv; engine.adapters.static_web.adapter.StaticWebAdapter._fetch; related tests and SOURCE_MANIFEST.sha256.
+ORIGINAL HANDOFF ZIP: C:\Users\scarl\Downloads\Booru_Studio_V10_Codex_Handoff_Complete.zip
+ORIGINAL HANDOFF ZIP SHA256: 2B57F05DF6FFBDEDF39C85BD7717B7E5D1316AE18405B8F2FB78E69513E1B1CD
+ORIGINAL REDACTION FILE SHA256: 4510CF4449B668B3D8AAECB0980E886AB9A0CCD8CBD5F9C42230FE95109FF0F8
+MODIFIED REDACTION FILE SHA256: B77F91AB5558652689F47B2EAAC99CC82776B3880FDF4B2593A3523ABFCABE9C
+
+FOUR REQUIRED ARTIFACT PATHS:
+MODIFIED_FILE: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009\MODIFIED_FILE.zip
+DIFF_FILE: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009\DIFF_FILE.patch
+VERIFICATION.txt: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009\VERIFICATION.txt
+ROLLBACK.sh: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009\ROLLBACK.sh
+WINDOWS ROLLBACK: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009\ROLLBACK.ps1
+POSIX EXECUTABLE ARCHIVE: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009\ROLLBACK.sh.zip
+MODIFIED SOURCE COPY: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\work\Booru_Studio_V10_Review_20261009
+REPORT: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\work\Booru_Studio_V10_Review_20261009\REVIEW_20261009_REPORT.md
+
+BASELINE
+Working directory/input: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\work\Booru_Studio_V10_Sprint11 ; tests directory ; Windows/Python 3.12 ; local loopback test servers.
+Command (PowerShell):
+$env:PYTHONPATH='C:\Users\scarl\Documents\Codex\2026-07-14\python-soda1-org-url-url-https\.venv-build\Lib\site-packages;C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009'; $env:BOORU_TEST_RUN='baseline-verified-20261009'; & 'C:\Users\scarl\AppData\Local\Programs\Python\Python312\python.exe' -m pytest -q -p no:tmpdir -p no:cacheprovider -p test_harness_plugin tests
+Literal result: 15 failed, 220 passed, 13 skipped in 46.68s
+Exit status: 1
+Full log: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009\BASELINE_VERIFIED_PYTEST.log
+
+MODIFIED
+Working directory/input: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\work\Booru_Studio_V10_Review_20261009 ; tests directory ; Windows/Python 3.12 ; local loopback test servers.
+Command (PowerShell):
+$env:PYTHONPATH='C:\Users\scarl\Documents\Codex\2026-07-14\python-soda1-org-url-url-https\.venv-build\Lib\site-packages;C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009'; $env:BOORU_TEST_RUN='modified-final3-20261009'; & 'C:\Users\scarl\AppData\Local\Programs\Python\Python312\python.exe' -m pytest -q -p no:tmpdir -p no:cacheprovider -p test_harness_plugin tests
+Literal result: 1 failed, 239 passed, 13 skipped in 77.64s (0:01:17)
+Exit status: 1
+Remaining failed test: tests/integration/test_sprint6_gallery_discovery.py::test_gallery_discovery_persists_only_normalized_state_then_direct_handoff ; local HTTP read timed out.
+Full log: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009\MODIFIED_FINAL3_PYTEST.log
+Focused command: python.exe -m pytest -q -p no:tmpdir -p no:cacheprovider -p test_harness_plugin tests/unit/test_sprint8_static_web.py tests/integration/test_sprint8_web_pipeline.py
+Focused literal result: 6 passed in 2.40s ; exit status: 0
+Compile command: python.exe -m compileall -q src tests tools
+Compile literal result: no output ; exit status: 0
+Modified behavior command/input: PYTHONPATH=<MODIFIED SOURCE COPY>\src ; python.exe -c "from booru_studio.common.redaction import redact_input_for_storage; print(redact_input_for_storage('https://example.test/path?quality=best&token=secret'))"
+Modified behavior literal output: https://example.test/path ; exit status: 0
+
+ROLLBACK
+Working directory/input: C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\work\Booru_Studio_V10_Review_RollbackCheck6_20261009 ; extracted MODIFIED_FILE.zip ; DIFF_FILE.patch.
+Command (PowerShell):
+& 'C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009\ROLLBACK.ps1' -TargetDir 'C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\work\Booru_Studio_V10_Review_RollbackCheck6_20261009' -PatchFile 'C:\Users\scarl\Documents\Codex\2026-08-25\new-chat\outputs\booru-studio-review-20261009\DIFF_FILE.patch'
+Literal output: ROLLBACK_APPLIED ; ROLLBACK_EXIT=0
+Exit status: 0
+Hash-check command/input: compare SHA256 of every baseline source file with the rollback copy; verify modified SOURCE_MANIFEST.sha256 entries and reopen ZIP contents.
+Literal output: ROLLBACK_HASH_MATCH=True FILES=269 MISMATCH=0 EXTRA=0 / MANIFEST_MATCH=True ENTRIES=269 ERRORS=0 / ZIP_REOPEN=True ZIP_ENTRIES=270 ZIP_HASH_MATCH=True FILE_SET_MATCH=True / VERIFY_EXIT=0
+Exit status: 0
+Restored behavior command/input: PYTHONPATH=<ROLLBACK COPY>\src ; python.exe -c "from booru_studio.common.redaction import redact_input_for_storage; print(redact_input_for_storage('https://example.test/path?quality=best&token=secret'))"
+Restored behavior literal output: https://example.test/path?quality=best&token=%5BREDACTED%5D ; exit status: 0
+POSIX ROLLBACK.sh uses the same reverse patch and manifest line-ending restoration. Windows Git Bash emitted "fatal error - couldn't create signal pipe, Win32 error 5" on this host; the PowerShell rollback completed and matched all 269 original file hashes. The primary MODIFIED SOURCE COPY remains changed.
+The POSIX archive was reopened: ROLLBACK_SH_ARCHIVE_REOPEN=True MODE=0o755 SHEBANG=True ; exit status: 0.
+
+PACKAGE
+MODIFIED_FILE.zip SHA256: FCF76D5B9D77ABB04ECEF2C039DCCD54FDA9186853F1B3902067452F50561E16
+ZIP source entries: 270; manifest entries: 269; reopened integrity and hashes: PASS.

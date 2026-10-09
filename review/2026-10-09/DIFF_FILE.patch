@@ -1,0 +1,461 @@
+diff --git a/REVIEW_20261009_REPORT.md b/REVIEW_20261009_REPORT.md
+new file mode 100644
+--- /dev/null
++++ b/REVIEW_20261009_REPORT.md
+@@ -0,0 +1,26 @@
++# Booru Studio V10 전체 점검 및 보완 보고서 — 2026-10-09
++
++## 이번 변경
++
++- `redact_input_for_storage()`가 HTTP(S) URL의 모든 쿼리와 fragment를 저장 전에 제거한다. 알 수 없는 서명 키도 SQLite/로그/스냅샷에 남기지 않으며, 혼합 대소문자 scheme과 IPv6 호스트를 처리한다.
++- `SourceGrantStore`가 잘못된 payload, 경로의 링크·reparse 구성 요소, 기존 grant 파일 덮어쓰기를 거부한다. 임시 파일은 배타적으로 생성하고 파일 동기화 후 원자적으로 연결한다. DPAPI 암호화에는 UI 금지 플래그를 사용한다.
++- Windows의 파일 동기화 경로를 쓰기 가능한 핸들로 열어 `os.fsync()` 실패를 바로잡았다. 대상은 해시 유틸리티와 Direct HTTP 체크포인트이다.
++- POSIX `StreamConnection`의 fd 수신을 프레임 디코더와 단조 시계 기반 타임아웃으로 정리했다. Windows 수신 경로는 기존 구현을 유지한다.
++- Static Web HTML 요청·스트림 읽기의 일시적 연결 실패를 최대 3회 시도하고, 마지막 실패를 `NETWORK_TIMEOUT` 또는 `NETWORK_RESET`으로 분류한다. 중간 실패에서 받은 부분 HTML은 버리고 전체 요청을 다시 읽는다.
++- 테스트의 경로 구분자와 파일 인코딩 기대값을 플랫폼 독립적으로 명시했다.
++
++## 검증 결과
++
++- 원본 Sprint 11 소스 기준 전체 테스트 재검증: **15 failed, 220 passed, 13 skipped** (Python 3.12, Windows, 외부 pytest harness). 실패는 Windows 읽기 전용 핸들 동기화, 경로·인코딩 기대값, 로컬 HTTP 연결 문제를 포함한다. 앞선 실행은 **16 failed, 219 passed, 13 skipped**로 로컬 HTTP 결과가 변동했다.
++- 수정본 최종 전체 테스트: **1 failed, 239 passed, 13 skipped**. 남은 실패는 gallery direct handoff의 로컬 HTTP 읽기 타임아웃이다. Direct HTTP는 재시도를 수행하지만 이 실행에서는 최종 시도까지 응답을 완료하지 못했다. 전체 테스트는 **NOT PASS**이다.
++- 집중 검사: redaction, source grant, 제품 제어, QML 계약 **18 passed**; Static Web 관련 검사 **6 passed**; `compileall` **PASS**.
++- 이번 검사는 Python 3.12 소스 테스트다. 프로젝트가 요구하는 Python 3.13 봉인 도구체인, frozen 제품 실행, 설치 프로그램, 실제 사이트·대량 전송은 이번 결과로 통과했다고 보지 않는다.
++
++## 다음 작업 우선순위
++
++1. **P0 — 제품 실행 루프 연결:** `SourceGrantStore`는 현재 제품 코드에서 호출되지 않는다. Core의 입력 수락 → protected source → resolver/classifier → queue → Worker → FileCommit → UI 갱신 → 다음 큐 실행을 한 경로로 연결하고 실제 프로세스 통합 테스트를 추가한다.
++2. **P0 — gallery HTTP 실패 재현:** 테스트 서버의 송신 완료·연결 종료와 Direct HTTP의 재시도 횟수·체크포인트를 분리 계측한다. 재현 조건이 확인되면 해당 계층을 수정하고 전체 테스트를 재실행한다.
++3. **P1 — Worker 프로세스 관측성:** `core/worker_launcher.py`의 `stderr=subprocess.PIPE`는 수거 루프가 없다. 제한된 버퍼·redaction·종료 회수를 갖춘 로그 처리로 프로세스 정체와 비밀 노출 가능성을 제거한다.
++4. **P1 — 릴리스 재현성:** `pyproject.toml`은 Python 3.13을 요구하지만 현재 로컬 검증은 3.12이다. 고정 Python/uv/Rust/PySide6/PyInstaller/Inno 도구체인, lock 검사, frozen QML 및 설치·롤백 검증을 한 빌드에서 묶는다.
++
++이 보고서는 첨부 문서의 작업 목표를 현재 소스와 비교해 작성했다. 문서의 과거 PASS 기록은 현재 수정본의 검증 결과로 승격하지 않았다.
+diff --git a/SOURCE_MANIFEST.sha256 b/SOURCE_MANIFEST.sha256
+--- a/SOURCE_MANIFEST.sha256
++++ b/SOURCE_MANIFEST.sha256
+@@ -61,7 +61,6 @@
+ 32f0095fba5e03dea81c9f12b1f1baec1de69918d1589bb41e1da40e5a9088bd  src/booru_studio/scheduler/adaptive_network.py
+ 334561bc9db11a237270c982b6764f1f80de31529cef3d66952f4841523869e7  src/booru_studio/packaging/install_state.py
+ 35ee57a665675e8f25d664104832fc846612e2de910a545988b1db07c4b43d47  src/booru_studio/packaging/manifest.py
+-37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4  .pytest_cache/CACHEDIR.TAG
+ 38109f6445bd47b0328dcfbd39e1954db88446134595f6c1aeec8500381353c6  src/booru_studio/scheduler/retry_state.py
+ 38a668596f3766aef29c7b15a5c245a7e822ed33eeeb854ed7f46fdf61dc1171  src/booru_studio/persistence/db_actor.py
+ 3bdc1a48a27ca7c8964df239a03bf94b35ae4277b684b3f04e1580c1768233ee  tools/build_capsule_manifest.py
+@@ -71,7 +70,6 @@
+ 3c2c41d0846a48145ad6ebe5e85fef9e926c3a257051f7eded30151e3fb9486b  docs/adr/0010-bounded-direct-http-scheduler.md
+ 3d6048a124591a98d4966ef22f5a03c83327ba99b846758548c20a31610c5371  tests/unit/test_clock.py
+ 3eb8b486667a497fbc3bdc7fe40169e1e5307c29662403854543b02b2a13bb78  tools/build_frozen_qml_smoke.ps1
+-3ed731b65d06150c138e2dadb0be0697550888a6b47eb8c45ecc9adba8b8e9bd  .pytest_cache/.gitignore
+ 3f56abb5cdcc786196c16cc6277e150afdcef309a75000187663a4b622936d64  tests/unit/test_ipc.py
+ 3fbf96649b3bd5efc18232b46fcee40a09fe265c0607492ea70597e2ca8fa3ed  src/booru_studio/core/worker_launcher.py
+ 405ab0d0bbf76b1d2f37fae3a2ae437ba8c5ee7399bf867aa29ff726c7e316f1  src/booru_studio/ui/remote_backend.py
+@@ -79,9 +77,7 @@
+ 40bccba8c2571b4ca25699d9c6c6d6971d49d8241055f7116826259894b42736  tests/unit/test_domain.py
+ 40e2d59632f67e2b0adb65a07e962b7f0bb8cb3d871e0bb904fe1a564f6c3745  docs/adr/0012-core-owned-ui-projection.md
+ 434ff067d134786e912211d8283ff1a936a5f7f4b62c3df209111beab4a44758  src/booru_studio/core/artifact_service.py
+-44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a  .pytest_cache/v/cache/lastfailed
+ 44af5c723c96a500e2d6e5fd2db9e98ecac828589ad11ba9315314d07e8ab23a  tests/integration/test_sprint4_direct_http.py
+-4510cf4449b668b3d8aaecb0980e886ab9a0ccd8cbd5f9c42230fe95109ff0f8  src/booru_studio/common/redaction.py
+ 451588719a36d5ccec2d717aebef64ae7cf01dd4ffaf94c69dc6c0bdd399e7d0  tests/unit/test_sprint11_frozen_qml_contract.py
+ 459763b0746801124568830a2024a66aff9d8f97e19f6ed995878ba67b150346  src/booru_studio/domain/job.py
+ 4664f3212489293b48c755c6cddd636189070f36ec35fcf6b314c1a20366c870  src/booru_studio/persistence/repositories/state_repository.py
+@@ -101,10 +97,10 @@
+ 536d4137d6c67e9500b3979c67378ee1a28463dc64864f18ee60d1256e1f2831  CHANGELOG.md
+ 53acff31d2a45869144a72d451b2596500d966ee50e74a2292113ab89636c400  src/booru_studio/domain/queue.py
+ 54ab6a56c157ad045705b2fa3ace8bf24aa38cb7817f922db22631666ab0e50f  src/booru_studio/worker/gallery_pipeline.py
++54d1708eedeb604939cd27395aa50ed551ef2ded6ca5af1d55b3e15dedf231ab  tests/unit/test_gate115_source_grant.py
+ 5615eccff7968ecdbda6e2303df256a75a10ebb66f552434ac0b5a61335b65f7  tests/unit/test_errors.py
+ 56479e0f77ff3b92da4572b4f7bc9772bcbad94429854887a98d47470fb74396  src/booru_studio/engine/adapters/__init__.py
+ 568b6b29e527e3b55ed8d8f2e4a42a9367a0666648d243fdd34ccce31e36461d  native/supervisor/Cargo.lock
+-5756a4e8fe244899a9d52f81a8d612fb32e8eb447d14326676ad042836a4e1a4  tests/integration/test_sprint9_product_controls.py
+ 583c4123226a646b5a2ad449ccfe868aae656b66184e3625bfcbd524542e784a  docs/adr/0021-durable-worker-control-observation.md
+ 58d876924ee12e987bd4c10db719588bccc4a26be8dcce3543c573a34e68ef86  docs/updater-regression-risks.md
+ 58ef23841f604d8b81bfdea7839824f2ddd3a2fdd33f55b8accd1357b7b6fd8a  tests/unit/test_sprint7_yt_dlp_adapter.py
+@@ -115,7 +111,6 @@
+ 5d014a05341fe3e852b3a442630fd6b071af2a0245c92f71bc1c9703ee24866c  SPRINT4_REPORT.md
+ 64076164cfdc67227ed4ae6727dcca824db7e7a3112bc60b04c46184d4e46398  tests/unit/test_sprint3_matrix.py
+ 657885e6c6900db9607f2a42358feed9175a0c9274fbe9c3879b269786d4ce2a  src/booru_studio/core/job_service.py
+-66c1f8041ea68eb24c6cdca42d72ba9ff74e8119d93a90799e0b97f3fabf84e0  src/booru_studio/engine/adapters/direct_http/transfer.py
+ 6766cda5055d655d1b39ca9b913f5cd91281680353921f7cafe7172b5e6ca598  src/booru_studio/persistence/transactions/job_transactions.py
+ 6767c72cb00ae0e07d264415cbc581b7df1da33e206be1bfdc47a15e7fa762a3  docs/sprint1-status.md
+ 678f41ab3c79e94b994ab1288f18a6f0a170bc456b0cb435fa4309ecc755657c  tools/sprint10_windows_runtime_smoke.py
+@@ -132,7 +127,6 @@
+ 72a86547dd50d5b28028090a7da92c87b56b0c5a93c274be66d35dd512d19922  docs/adr/0019-windows-supervisor-containment.md
+ 73c6bea9f3a0b04b9e5912fcc72067fe1ccba7fa4ddcebfd93c5dc44b77565e9  src/booru_studio/engine/adapters/playwright_browser/__init__.py
+ 73fbe2fd96684b8837ca0556e1454d68f590e4050a72daf92659c96f22c6ee44  docs/sprint10-status.md
+-73fd6fccdd802c419a6b2d983d6c3173b7da97558ac4b589edec2dfe443db9ad  .pytest_cache/README.md
+ 749924fe9f7e13d3d4c51c3b42e3b51a04a2d4b1d2732d642ec1415395e1fbb9  src/booru_studio/persistence/transactions/control_transactions.py
+ 756664119939cc02eb7ad8711a5e6a01d277c465fd1d78ef7c87163015e34a5b  tests/unit/test_gate65_media_contracts.py
+ 762d27c209b5ac4c1a30b1617c123fe5e07d3dd6bb0fbbd9a3a4fc9c5ee9b4a2  docs/adr/0009-worker-transaction-lane.md
+@@ -153,6 +147,7 @@
+ 8a533b23f58f5be2710ba2a18c58549f5f45e12511b687dab37158fe85160692  tests/unit/test_engine_contracts.py
+ 8a5743f7219239ed007a67bb9b448f3328d6905ee974fdac6f118e7c40741ee2  src/booru_studio/engine/contracts.py
+ 8ad9519bbb1d43a5e258e4c2bb2f4fdab93370259ffb648a663ad40be9b4076c  src/booru_studio/persistence/repositories/projection_repository.py
++8bd3dc8658bc50a07c2613c33f7e5b342342b455d8a7cd2d6d765032b6c9bf11  tests/unit/test_sprint8_static_web.py
+ 8cbd3fbd2d39abebcc5a8bc4d36c945d4665a72b7ca2bb13f0ca7e83d815f955  tests/unit/test_sprint4_scheduler.py
+ 8d58f9a1607c75c060f1e4a1272ca5512c8b0f6d5a9f558b01d12a376d1c779d  native/supervisor/README.md
+ 90450ea611db5a660ab4f4ecce5e7fd7bf47905c0e507644ddcf5bca9653e7a3  tools/sprint10_windows_handle_probe.py
+@@ -170,20 +165,20 @@
+ 9aefe71bc8183e5c300a1a4370d7e8d301fe9707e60d2cd1bd046f4188006d7a  src/booru_studio/scheduler/retry.py
+ 9b7278c8d38cb42741853228aaf136d940eeb50bb5ee8d3a2d7b9f425b2195ba  docs/adr/0005-command-idempotency.md
+ 9bbdca7887d7f89c329f93b531d18d982bc183db79420f2058544ab14d293834  tests/integration/test_sprint7_media_durability.py
+-9c77ec460cdad5bdcde88cc89cb1b1221da1224c9eb74fdc2580f558a7dd6717  src/booru_studio/common/hashing.py
+ 9ed148fdfedfd7b434bc8c4b91ba90adac918d78f010444ae7556259b79b5a47  src/booru_studio/persistence/repositories/worker_repository.py
++9fe5c5640393220f00e732ada0af207aaa3bececeacdd785a1f72acf0caea322  src/booru_studio/engine/adapters/static_web/adapter.py
+ a14116b05f2fe7f19671bdb865a12a3acfc2381a86378c5bc6507a26393eb85f  src/booru_studio/persistence/repositories/network_repository.py
+ a14fc311db8cb58df8f04a0e0224fca98371aa4bd8af9090ee9df4b57d96b0cb  SPRINT9_REPORT.md
+ a348399df69ab1675df199737867ff7934feb04a0c59823938c39705f8edf1fc  docs/engine-dependency-policy.md
+ a45502acfdcd5997ee34fab075feeae19ca2a61ef4d6dd4e879a0f626435a934  tests/integration/test_sprint4_durable_network_state.py
+-a4c6909dedbc7489087f99847f7b2445a5f26c6edd93848a1b7d6ffc1251d4b0  tests/unit/test_sprint8_static_web.py
++a4e242ee795e7a22bd2a245c6c3cdc53e0338b2772547004b9c9bf85b0f44e90  tests/unit/test_sprint5_redaction_telemetry.py
+ a577bb4787aadb15005abe24906a24649a7bab072c1d6c4f1b87e1a4c3809f93  tests/unit/test_sprint7_ffmpeg_adapter.py
+ a5c26694443f628ef9f22032fdb3f104926f4ad46846d1012deef45a7690f205  tests/unit/test_sprint8_ffmpeg_advanced.py
+ aa8005451c4b7f054365f879b1fa8ae34f1d5360f3c7c870bc4c7c6fede9d044  src/booru_studio/ui/action_controller.py
++ac7f3034179a7a9442e9a762e329912bc9f4bdd18af839a17848be40ee18aa7f  src/booru_studio/domain/source_grant.py
+ ac81c66dd84ccd239a69e80d4a9afd894ba1aa7e453e023e0db5f731058fb2bf  SPRINT0_REPORT.md
+ ad1b7f9529dbf6062537ce430e1916b40274973bb0fda322bad4eadab6547e7d  src/booru_studio/ipc/qlocal.py
+ ad69082287d598467f6c90589a39e5e5df1299895f0c55e168d571d16e1e8632  src/booru_studio/ui/qml/pages/QueuePage.qml
+-ae4703e44b12f1a35dbc78d95e3b7269334e381a2744d9e8dbe416cc81c6a6f4  tests/unit/test_sprint5_redaction_telemetry.py
+ af67f32aef22ad47bc0d60a27e3bf9779026bc1f099d576b727c0231051e7c84  docs/sprint5-status.md
+ afadf81d9e4ebb161615ee118bb5703131ce376b5b83251dd099c5195eb0d4a8  docs/adr/0014-gallery-dl-discovery-handoff.md
+ afce79622b54c0a56951b179f67f1e25b02eba78d79991b29b33a2df6bd79b9c  src/booru_studio/ui/translations/en_US.json
+@@ -192,15 +187,18 @@
+ b59d54adf3b5522399824322e36d80e26f2af0245ae92814fd8ccf46e79879bb  native/supervisor/src/main.rs
+ b5a29bbe57dea9a4fc5f2fa281df8f2a6977b3309c9d084b43959156e6a9867d  src/booru_studio/engine/adapters/ffmpeg/__init__.py
+ b6676097b81ac052baeacf0d515f588d9adab24c84040a884974ddba73028d51  tests/unit/test_sprint4_direct_adapter.py
++b68e412e5ff0e461f52d01e262a9dc630e6d157f12ad9bb6e675f251be977e27  tests/integration/test_sprint9_product_controls.py
++b77f91ab5558652689f47b2eaac99cc82776b3880fdf4b2593a3523abfcabe9c  src/booru_studio/common/redaction.py
+ b940068f484d4075a620fc4f59d4237768642a54d2d63bc0582cf0b3289cfd5f  src/booru_studio/worker/main.py
+ ba2dd704a9080f36195b1ffda5afcc9dda337752ff1cf8f72e2c11c7c75b09f0  tests/architecture/test_import_boundaries.py
+ ba685d613d2ed2b17a2fa20ccf78edb8a6f19d5ed624b7b21fef39690fe24655  docs/design-system.md
+ bad74c89b4285ad2d2b4b334d18a425d37a64c968e7472735df20c75822e8a19  src/booru_studio/ui/qml/pages/DownloadsPage.qml
++bbd145381a609a062998494da2138ad4ccfb08197a40f5254b3b9d2dbc742c64  tests/unit/test_sprint5_qml_contract.py
++bcef7b1fe407ae661ae62a99896ae85f5d6ba4cd26ce97412d03b949c3a64509  src/booru_studio/ipc/stream_connection.py
+ bd33c6d52ab8ac35bde253b8e509def61f7f3c15eb4238997f0388a84fc5e4a1  SPRINT2_REPORT.md
+ be912876d1edfa4c9cab318f2209492ebfe87b9c4909402b0fff60b5b7732380  src/booru_studio/ui/models/list_data.py
+ becb32f713d562a3c4f23fa84249c649381e71d4b0fee2cb2cb0f7035838c2e4  tests/unit/test_sprint11_capsule_contract.py
+ c0f4f97d9e7f392fc1b26d9ca31140c297a640fb79010ad589421a01e944e635  src/booru_studio/ipc/core_worker_protocol.py
+-c0ff138922d23245bd72f695697f41744288b433065fea2974a623b6eaa8493c  src/booru_studio/ipc/stream_connection.py
+ c281c65eca4e100d9c23a6e46c18563e79d00202717e28094961c93ad5217217  src/booru_studio/domain/commands.py
+ c28b63c5e766c7e9142014f0b761dd15fc302094262c689f5f622d027e780aa6  SECURITY.md
+ c2c4f8fe05500bb066dab31fc66d74b9859765c8d08d09f90f7e27c191ae967c  src/booru_studio/ui/ipc_client.py
+@@ -226,14 +224,14 @@
+ d27c51e896665a60c2bdfc22581d94091f1961ffa588dd5c8840cc567f5db512  docs/adr/0001-local-ipc.md
+ d4a52ef634d8e00a6dd3976520834f3e210b1d221f5d62ac1e8c4f3b27c37f02  docs/adr/0016-transactional-update-success.md
+ d4bcd9979f8cf3ba67ff537c448c3318f085dc4a07d807311171263c54003c16  docs/sprint7-start-plan.md
+-d4c1dde3f465bceb61a6621fd3ec1550eacc0d34ecee4a2dff1d3248c95f97ac  .pytest_cache/v/cache/nodeids
++d6014a0f315a342039ecbe98a8c8ead6ee00404c29b14521c969506de8e7a5b5  src/booru_studio/common/hashing.py
++d6074bca910daf0935727a089f92efe21c1ad0189eab6004dd28b9ae76f27c1c  src/booru_studio/engine/adapters/direct_http/transfer.py
+ d9c8e84481bf6e3b862e984afbc97ab51b100541b5c47611a374f45791fbe9bd  tests/unit/test_sprint10_worker_lease_runtime.py
+ dc551ebb82789f54afed6f3c7f0ed3c5e7db4df71366638457a96b764508deda  tests/integration/test_sprint3_worker_control.py
+ de3ba2e8198a752722b3fcee20d46955f45…2921 tokens truncated…path)
+         write_resume_sidecar(
+             artifact_id=transfer.artifact_id,
+             generation=transfer.generation,
+diff --git a/src/booru_studio/engine/adapters/static_web/adapter.py b/src/booru_studio/engine/adapters/static_web/adapter.py
+--- a/src/booru_studio/engine/adapters/static_web/adapter.py
++++ b/src/booru_studio/engine/adapters/static_web/adapter.py
+@@ -132,40 +132,43 @@
+                 policy.authorize(current)
+             except NetworkScopeBlocked as exc:
+                 raise StaticWebEngineError(ErrorCode.NETWORK_SCOPE_BLOCKED, "static web navigation was blocked") from exc
+-            try:
+-                response = self._session.get(current, allow_redirects=False, stream=True, timeout=timeout_s)
+-            except requests.Timeout as exc:
+-                raise StaticWebEngineError(ErrorCode.NETWORK_TIMEOUT, "static web request timed out") from exc
+-            except requests.RequestException as exc:
+-                raise StaticWebEngineError(ErrorCode.NETWORK_RESET, "static web request failed") from exc
+-            with response:
+-                if response.status_code in {301, 302, 303, 307, 308}:
+-                    location = response.headers.get("Location")
+-                    if not location:
+-                        raise StaticWebEngineError(ErrorCode.ENGINE_PROTOCOL_ERROR, "redirect response lacked Location")
+-                    current = urljoin(current, location)
+-                    continue
+-                if response.status_code == 429:
+-                    raise StaticWebEngineError(ErrorCode.RATE_LIMITED, "static web request was rate limited")
+-                if response.status_code in {401, 403}:
+-                    raise StaticWebEngineError(ErrorCode.AUTH_REQUIRED, "static web source requires authentication")
+-                if response.status_code == 404:
+-                    raise StaticWebEngineError(ErrorCode.SOURCE_NOT_FOUND, "static web source was not found")
+-                if not 200 <= response.status_code < 300:
+-                    raise StaticWebEngineError(ErrorCode.ENGINE_UNKNOWN_ERROR, f"static web HTTP {response.status_code}")
+-                content_type = str(response.headers.get("Content-Type") or "").casefold()
+-                if "html" not in content_type and "xhtml" not in content_type:
+-                    raise StaticWebEngineError(ErrorCode.UNSUPPORTED_MEDIA, "static resolver expected an HTML document")
+-                chunks: list[bytes] = []
+-                size = 0
+-                for chunk in response.iter_content(64 * 1024):
+-                    if not chunk:
+-                        continue
+-                    size += len(chunk)
+-                    if size > _MAX_HTML_BYTES:
+-                        raise StaticWebEngineError(ErrorCode.RESOURCE_EXHAUSTED, "HTML document exceeded 4 MiB resolver ceiling")
+-                    chunks.append(chunk)
+-                return current, b"".join(chunks), MappingProxyType(dict(response.headers)), policy
++            for attempt in range(3):
++                try:
++                    response = self._session.get(current, allow_redirects=False, stream=True, timeout=timeout_s)
++                    with response:
++                        if response.status_code in {301, 302, 303, 307, 308}:
++                            location = response.headers.get("Location")
++                            if not location:
++                                raise StaticWebEngineError(ErrorCode.ENGINE_PROTOCOL_ERROR, "redirect response lacked Location")
++                            current = urljoin(current, location)
++                            break
++                        if response.status_code == 429:
++                            raise StaticWebEngineError(ErrorCode.RATE_LIMITED, "static web request was rate limited")
++                        if response.status_code in {401, 403}:
++                            raise StaticWebEngineError(ErrorCode.AUTH_REQUIRED, "static web source requires authentication")
++                        if response.status_code == 404:
++                            raise StaticWebEngineError(ErrorCode.SOURCE_NOT_FOUND, "static web source was not found")
++                        if not 200 <= response.status_code < 300:
++                            raise StaticWebEngineError(ErrorCode.ENGINE_UNKNOWN_ERROR, f"static web HTTP {response.status_code}")
++                        content_type = str(response.headers.get("Content-Type") or "").casefold()
++                        if "html" not in content_type and "xhtml" not in content_type:
++                            raise StaticWebEngineError(ErrorCode.UNSUPPORTED_MEDIA, "static resolver expected an HTML document")
++                        chunks: list[bytes] = []
++                        size = 0
++                        for chunk in response.iter_content(64 * 1024):
++                            if not chunk:
++                                continue
++                            size += len(chunk)
++                            if size > _MAX_HTML_BYTES:
++                                raise StaticWebEngineError(ErrorCode.RESOURCE_EXHAUSTED, "HTML document exceeded 4 MiB resolver ceiling")
++                            chunks.append(chunk)
++                        return current, b"".join(chunks), MappingProxyType(dict(response.headers)), policy
++                except requests.Timeout as exc:
++                    if attempt == 2:
++                        raise StaticWebEngineError(ErrorCode.NETWORK_TIMEOUT, "static web request timed out") from exc
++                except requests.RequestException as exc:
++                    if attempt == 2:
++                        raise StaticWebEngineError(ErrorCode.NETWORK_RESET, "static web request failed") from exc
+         raise StaticWebEngineError(ErrorCode.ENGINE_PROTOCOL_ERROR, "static web redirect ceiling exceeded")
+ 
+     def discover(self, raw_input: str, *, timeout_s: float = 15.0) -> StaticWebResult:
+diff --git a/src/booru_studio/ipc/stream_connection.py b/src/booru_studio/ipc/stream_connection.py
+--- a/src/booru_studio/ipc/stream_connection.py
++++ b/src/booru_studio/ipc/stream_connection.py
+@@ -1,11 +1,15 @@
+ from __future__ import annotations
+ 
+ import io
++import os
++import select
+ import struct
+-from typing import BinaryIO
++import time
++from collections import deque
++from typing import Any, BinaryIO
+ 
+ from booru_studio.ipc.envelopes import Envelope, envelope_from_wire_dict, envelope_to_wire_dict
+-from booru_studio.ipc.framing import ABSOLUTE_MAX_FRAME_BYTES, encode_json_frame
++from booru_studio.ipc.framing import ABSOLUTE_MAX_FRAME_BYTES, FrameDecoder, encode_json_frame
+ 
+ _HEADER = struct.Struct(">I")
+ 
+@@ -24,12 +28,16 @@
+ class StreamEnvelopeConnection(EnvelopeConnection):
+     def __init__(self, reader: BinaryIO, writer: BinaryIO, *, max_frame_bytes: int = ABSOLUTE_MAX_FRAME_BYTES) -> None:
+         self._reader = reader; self._writer = writer; self._max = max_frame_bytes
++        self._decoder = FrameDecoder(max_bytes=max_frame_bytes)
++        self._pending: deque[dict[str, Any]] = deque()
+ 
+     def send(self, envelope: Envelope) -> None:
+         frame = encode_json_frame(envelope_to_wire_dict(envelope), max_bytes=self._max)
+         self._writer.write(frame); self._writer.flush()
+ 
+     def recv(self) -> Envelope:
++        if os.name != "nt" and self._pollable_fd() is not None:
++            return self._recv_fd(None)
+         header = self._read_exact(4)
+         (size,) = _HEADER.unpack(header)
+         if size > self._max:
+@@ -42,18 +50,33 @@
+         return envelope_from_wire_dict(obj)
+ 
+     def recv_timeout(self, timeout_s: float) -> Envelope:
+-        import os
+-        import select
+         if os.name == "nt":
+             raise NotImplementedError("source stream timeout is POSIX-only")
++        if self._pollable_fd() is None:
++            raise NotImplementedError("stream does not expose a pollable file descriptor")
++        return self._recv_fd(max(0.0, float(timeout_s)))
++
++    def _pollable_fd(self) -> int | None:
+         try:
+-            fd = self._reader.fileno()
+-        except (AttributeError, io.UnsupportedOperation) as exc:
+-            raise NotImplementedError("stream does not expose a pollable file descriptor") from exc
+-        ready, _, _ = select.select([fd], [], [], max(0.0, float(timeout_s)))
+-        if not ready:
+-            raise TimeoutError("IPC stream read timed out")
+-        return self.recv()
++            return self._reader.fileno()
++        except (AttributeError, io.UnsupportedOperation):
++            return None
++
++    def _recv_fd(self, timeout_s: float | None) -> Envelope:
++        fd = self._pollable_fd()
++        if fd is None:
++            raise NotImplementedError("stream does not expose a pollable file descriptor")
++        deadline = None if timeout_s is None else time.monotonic() + timeout_s
++        while not self._pending:
++            remaining = None if deadline is None else max(0.0, deadline - time.monotonic())
++            ready, _, _ = select.select([fd], [], [], remaining)
++            if not ready:
++                raise TimeoutError("IPC stream read timed out")
++            chunk = os.read(fd, 64 * 1024)
++            if not chunk:
++                raise EOFError("IPC stream closed")
++            self._pending.extend(self._decoder.feed(chunk))
++        return envelope_from_wire_dict(self._pending.popleft())
+ 
+     def _read_exact(self, count: int) -> bytes:
+         chunks = bytearray()
+diff --git a/tests/integration/test_sprint9_product_controls.py b/tests/integration/test_sprint9_product_controls.py
+--- a/tests/integration/test_sprint9_product_controls.py
++++ b/tests/integration/test_sprint9_product_controls.py
+@@ -64,7 +64,7 @@
+             conn.commit()
+         actor.submit(seed).result(2)
+         row = ProjectionService(actor).snapshot()["downloads"][0]
+-        assert row["primary_file_path"].endswith("folder/file.bin")
++        assert Path(row["primary_file_path"]).parts[-2:] == ("folder", "file.bin")
+         assert "https://example.test/media" in row["display_input"]
+     finally:
+         actor.close()
+diff --git a/tests/unit/test_gate115_source_grant.py b/tests/unit/test_gate115_source_grant.py
+--- a/tests/unit/test_gate115_source_grant.py
++++ b/tests/unit/test_gate115_source_grant.py
+@@ -18,6 +18,36 @@
+     assert store.load(grant.grant_id) == grant
+ 
+ 
++def test_locator_handles_ipv6_and_rejects_controls() -> None:
++    assert SourceLocator.from_url("https://[::1]:8443/file?Policy=secret").durable_url() == (
++        "https://[::1]:8443/file"
++    )
++    with pytest.raises(ValueError):
++        SourceLocator.from_url("https://example.test/path\x00bad")
++
++
++def test_grant_save_does_not_overwrite_existing_target_or_legacy_temp(tmp_path: Path) -> None:
++    store = SourceGrantStore(tmp_path / "grants")
++    store._ensure_root()
++    grant = SourceSecretGrant.from_url("https://example.test/file?Policy=private")
++    target = store._path(grant.grant_id)
++    target.write_bytes(b"foreign")
++    legacy_temp = target.with_suffix(".tmp")
++    legacy_temp.write_bytes(b"unrelated")
++    with pytest.raises(ValueError):
++        store.save(grant)
++    assert target.read_bytes() == b"foreign"
++    assert legacy_temp.read_bytes() == b"unrelated"
++
++
++def test_malformed_grant_payload_is_rejected() -> None:
++    grant_id = "a" * 32
++    for raw in (b"[]", b'{"raw_query":"x","headers":[["Authorization",3]]}',
++                b'{"raw_query":"x","headers":[["X-Test","a\\nb"]]}'):
++        with pytest.raises(ValueError):
++            SourceSecretGrant.deserialize(grant_id, raw)
++
++
+ def test_corrupt_or_symlink_grant_fails_closed(tmp_path: Path) -> None:
+     store = SourceGrantStore(tmp_path / "grants")
+     store._ensure_root()
+diff --git a/tests/unit/test_sprint5_qml_contract.py b/tests/unit/test_sprint5_qml_contract.py
+--- a/tests/unit/test_sprint5_qml_contract.py
++++ b/tests/unit/test_sprint5_qml_contract.py
+@@ -32,8 +32,8 @@
+ def test_translation_key_sets_are_identical() -> None:
+     import json
+ 
+-    ko = json.loads((ROOT / "src" / "booru_studio" / "ui" / "translations" / "ko_KR.json").read_text())
+-    en = json.loads((ROOT / "src" / "booru_studio" / "ui" / "translations" / "en_US.json").read_text())
++    ko = json.loads((ROOT / "src" / "booru_studio" / "ui" / "translations" / "ko_KR.json").read_text(encoding="utf-8"))
++    en = json.loads((ROOT / "src" / "booru_studio" / "ui" / "translations" / "en_US.json").read_text(encoding="utf-8"))
+     assert set(ko) == set(en)
+ 
+ 
+diff --git a/tests/unit/test_sprint5_redaction_telemetry.py b/tests/unit/test_sprint5_redaction_telemetry.py
+--- a/tests/unit/test_sprint5_redaction_telemetry.py
++++ b/tests/unit/test_sprint5_redaction_telemetry.py
+@@ -4,15 +4,21 @@
+ from booru_studio.ui.telemetry_overlay import JobTelemetry, TelemetryOverlay
+ 
+ 
+-def test_url_redaction_removes_userinfo_fragment_and_sensitive_query_values() -> None:
+-    raw = "https://user:pass@example.test/path?token=secret&quality=best#private"
++def test_url_redaction_removes_userinfo_fragment_and_all_query_values() -> None:
++    raw = "https://user:pass@example.test/path?token=secret&quality=best&Policy=signed#private"
+     redacted = redact_input_for_storage(raw)
+     assert "user" not in redacted
+     assert "pass" not in redacted
+     assert "secret" not in redacted
+     assert "private" not in redacted
+-    assert "token=%5BREDACTED%5D" in redacted
+-    assert "quality=best" in redacted
++    assert redacted == "https://example.test/path"
++    assert "signed" not in redacted
++
++
++def test_url_redaction_accepts_mixed_case_scheme_and_ipv6() -> None:
++    assert redact_input_for_storage("HTTPS://user:pass@[2001:DB8::1]:443/path?unknown_key=secret#part") == (
++        "https://[2001:db8::1]:443/path"
++    )
+ 
+ 
+ def test_telemetry_overlay_rejects_stale_generation_and_run_conflict() -> None:
+diff --git a/tests/unit/test_sprint8_static_web.py b/tests/unit/test_sprint8_static_web.py
+--- a/tests/unit/test_sprint8_static_web.py
++++ b/tests/unit/test_sprint8_static_web.py
+@@ -5,7 +5,47 @@
+ import threading
+ from pathlib import Path
+ 
++import requests
++
+ from booru_studio.engine.adapters.static_web import StaticWebAdapter
++
++
++def test_static_web_retries_broken_html_stream() -> None:
++    class Response:
++        status_code = 200
++        headers = {"Content-Type": "text/html"}
++
++        def __init__(self, broken: bool) -> None:
++            self.broken = broken
++
++        def __enter__(self):
++            return self
++
++        def __exit__(self, *_args):
++            return None
++
++        def iter_content(self, _size: int):
++            if self.broken:
++                raise requests.exceptions.ChunkedEncodingError("connection reset")
++            yield b"<html><head><title>Recovered</title></head></html>"
++
++    class Session:
++        def __init__(self) -> None:
++            self.headers: dict[str, str] = {}
++            self.calls = 0
++
++        def get(self, *_args, **_kwargs):
++            self.calls += 1
++            return Response(self.calls == 1)
++
++        def close(self) -> None:
++            return None
++
++    session = Session()
++    adapter = StaticWebAdapter(session=session, allow_private_root=True)
++    result = adapter.discover("http://127.0.0.1/page")
++    assert result.page_title == "Recovered"
++    assert session.calls == 2
+ 
+ 
+ def test_static_web_extracts_media_and_keeps_signed_url_ephemeral(tmp_path: Path) -> None:
